@@ -1,13 +1,13 @@
 // ==UserScript==
-// @name         e-nextlevel 4個表示対応 (再調整版)
+// @name         e-nextlevel 4個表示対応 (最終確定版)
 // @namespace    http://tampermonkey.net/
-// @version      1.7
-// @description  e-nextlevelの求人リストを4個表示にする再調整版
+// @version      1.8
+// @description  e-nextlevelの求人リストを4個表示にする最終確定版
 // @author       You
 // @match        https://www.e-nextlevel.jp/work/list*
 // @match        https://www.e-nextlevel.jp/work/long-list*
 // @grant        GM_addStyle
-// @run-at       document-idle
+// @run-at       document-end
 // ==/UserScript==
 
 (function() {
@@ -15,29 +15,31 @@
 
     console.log('e-nextlevel 4個表示対応 Userscript starting...');
 
-    // CSSの挿入
+    // -------------------------------------------------------------
+    // CSSを挿入
+    // -------------------------------------------------------------
     function injectCSS() {
         GM_addStyle(`
             /* グリッドコンテナのスタイル */
-            .e-nextlevel-grid-container {
+            /* my-list__jobs--itemの親要素を直接ターゲット */
+            .my-list__jobs--item-list-container {
                 display: grid !important;
                 grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
                 gap: 20px !important;
                 padding: 20px !important;
-                margin-left: auto !important;
-                margin-right: auto !important;
+                margin: 0 auto !important;
                 max-width: 1200px !important;
             }
 
             /* 各求人カードのスタイル */
             .my-list__jobs--item {
-                background-color: #fff !important;
-                border: 1px solid #e0e0e0 !important;
                 border-radius: 8px !important;
+                border: 1px solid #e0e0e0 !important;
                 transition: transform 0.2s ease, box-shadow 0.2s ease !important;
                 overflow: hidden !important;
                 text-decoration: none !important;
                 color: inherit !important;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
             }
 
             .my-list__jobs--item:hover {
@@ -49,7 +51,7 @@
             .my-list__jobs--item--image {
                 position: relative !important;
             }
-            .my-list__jobs--item--image--image {
+            .my-list__jobs--item--image img {
                 width: 100% !important;
                 height: 120px !important;
                 object-fit: cover !important;
@@ -61,28 +63,29 @@
                 top: 8px !important;
                 right: 8px !important;
                 z-index: 10 !important;
-            }
-            .job-item__keep-icon img {
-                width: 28px !important;
-                height: 28px !important;
-                border-radius: 50% !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 4px !important;
                 background-color: rgba(255, 255, 255, 0.8) !important;
+                border-radius: 50% !important;
             }
         `);
         console.log("CSS injected successfully.");
     }
     
+    // -------------------------------------------------------------
     // グリッドクラスの適用とDOMの監視
+    // -------------------------------------------------------------
     function applyGrid() {
-        // 求人カードの親要素を特定
-        const firstJobItem = document.querySelector('.my-list__jobs--item');
-        if (firstJobItem) {
-            let container = firstJobItem.parentElement;
+        // 求人カードの親要素を特定する
+        const jobItems = document.querySelectorAll('.my-list__jobs--item');
+        if (jobItems.length > 0) {
+            let container = jobItems[0].parentElement;
             let foundContainer = false;
-            // 複数個のmy-list__jobs--itemを持つ親要素を探す
             while(container && container !== document.body) {
-                if (container.querySelectorAll('.my-list__jobs--item').length > 1) {
-                    container.classList.add('e-nextlevel-grid-container');
+                if (container.children.length >= jobItems.length && !container.classList.contains('my-list__jobs--item')) {
+                    container.classList.add('my-list__jobs--item-list-container');
                     foundContainer = true;
                     console.log('Grid container found and class applied.');
                     break;
@@ -97,19 +100,28 @@
     }
 
     // DOMの変更を監視し、動的にロードされる求人にも対応
-    const observer = new MutationObserver((mutations, obs) => {
-        if (!document.querySelector('.e-nextlevel-grid-container')) {
+    const observer = new MutationObserver((mutations) => {
+        if (!document.querySelector('.my-list__jobs--item-list-container')) {
             applyGrid();
         }
     });
 
+    // -------------------------------------------------------------
+    // スクリプトの初期化
+    // -------------------------------------------------------------
     function init() {
         console.log('Initializing script...');
-        injectCSS();
-        applyGrid();
+        // ページ全体がロードされた後に実行
+        setTimeout(() => {
+            injectCSS();
+            applyGrid();
+        }, 1000); // 1秒遅延させて、サイトの動的ロード完了を待つ
+
+        // MutationObserverでDOMの変更を継続的に監視
         observer.observe(document.body, { childList: true, subtree: true });
     }
 
+    // スクリプトの実行
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
